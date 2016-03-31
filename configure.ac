@@ -3,7 +3,7 @@
 
 AC_PREREQ([2.59])
 # 5 argument version only available with aclocal >= 2.64
-AC_INIT([CAM], [1.0.0], [], [cam], [http://www.bioinf.uni-freiburg.de/])
+AC_INIT([CAM], [1.1.0], [], [cam], [http://www.bioinf.uni-freiburg.de/])
 AC_CONFIG_AUX_DIR([.])
 AC_CONFIG_SRCDIR([src/ITS_CSP.h])
 AC_CANONICAL_HOST

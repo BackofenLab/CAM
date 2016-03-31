@@ -18,6 +18,27 @@
  */
 class ITS_CSP : public Gecode::Space  {
 
+public:
+
+	typedef ReactionGraph::SymmetricMatchSet SymmetricMatchSet;
+
+	/*!
+	 * Facility class to provide all data structures needed to break symmetries.
+	 */
+	class SymmetryHandler {
+	public:
+
+		  //! the last educt assignment within a solution
+		sgm::Match eduLastSolution;
+
+		  //! vector of all symmetric solutions to exclude for eduITS
+		SymmetricMatchSet eduSymSolutions;
+
+		  //! vector of all symmetric solutions to exclude for proITS
+		SymmetricMatchSet proSymSolutions;
+
+	};
+
 
 protected:
 
@@ -30,8 +51,14 @@ protected:
 	  //! the given product graphs
 	const ReactionGraph & products;
 
+	  //! container that holds all information to break the symmetries
+	SymmetryHandler & symHandler;
+
 	  //! array containing atom variables of educts to be mapped
 	Gecode::IntVarArray eduITS;
+
+	  //! array storing whether an atom variables of educts to be mapped is a proton
+	Gecode::BoolVarArray eduITSproton;
 
 	  //! array containing variables of products i.e. mapping result
 	Gecode::IntVarArray proITS;
@@ -48,6 +75,7 @@ public:
 	ITS_CSP(	const ITS & its
 				, const ReactionGraph & educts
 				, const ReactionGraph & products
+				, SymmetryHandler & symHandler
 			);
 
 
@@ -86,6 +114,42 @@ public:
 	sgm::Match
 	getProductITS() const;
 
+	  /*!
+	   * Access to the smallest symmetry of getEductITS().
+	   * @return the smallest symmetry of the current educt assignment
+	   */
+	sgm::Match
+	getEduITSsolution() const;
+
+	  /*!
+	   * Access to the smallest symmetry of getProductITS().
+	   * @return the smallest symmetry of the current product assignment
+	   */
+	sgm::Match
+	getProITSsolution() const;
+
+
+	  /*!
+	   * Stores all symmetries of the given solution in the provided storage
+	   * @param solution the solution of interest
+	   * @param graph the graph this solution is covering
+	   * @param symSolStorage the storage for all symmetric solutions
+	   * @param removeIdentity whether or not the identity symmetry should be
+	   *        removed from the symmetry solution set (true) or not (false).
+	   */
+	void
+	storeSymmetries( const sgm::Match& solution
+				, const ReactionGraph & graph
+				, SymmetricMatchSet & symSolStorage
+				, const bool removeIdentity ) const;
+
+	  /*!
+	   * Access to products symmetries
+	   * @return products symmetry match set
+	   */
+	const
+	SymmetricMatchSet &
+	getProSymmetries() const ;
 
 
 	   /*!
@@ -118,7 +182,36 @@ public:
 protected:
 
 
+	  /*!
+	   * does a final check eduITS if they show a symmetric assignment of
+	   * already known assignments. if so, the space is set failed.
+	   * otherwise, the proITS symmetric solution container is reset.
+	   * @param home the space to check (has to be a ITS_CSP instance)
+	   */
+	static
+	void
+	checkEduSymmetries( Gecode::Space & home );
 
+	  /*!
+	   * does a final check proITS if they show a symmetric assignment of
+	   * already known assignments. if so, the space is set failed.
+	   * @param home the space to check (has to be a ITS_CSP instance)
+	   */
+	static
+	void
+	checkProSymmetries( Gecode::Space & home );
+
+	  /*!
+	   * Generates all symmetries based on symmetric node shufflings of the ITS
+	   * @param curSol the current solution
+	   * @param its the ITS of interest
+	   * @param symSol the container to add symmetric solutions to
+	   */
+	static
+	void
+	getITSSymmetries( const sgm::Match & curSol
+						, const ITS & its
+						, SymmetricMatchSet & symSol );
 
 	  /*!
 	   * Constraint post function to ensure the degree condition for the ITS
