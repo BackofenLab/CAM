@@ -8,8 +8,8 @@ compiler:
   - gcc
 
 before_install:
+  - echo "yes" | sudo apt-add-repository ppa:boost-latest
   - travis_retry sudo apt-get install -qq libboost-all-dev
-  - travis_retry sudo apt-get install -qq libboost-graph-parallel-dev
 
 script:
  # download and compile ViennaRNA dependency
