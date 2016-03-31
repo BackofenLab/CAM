@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/BackofenLab/CAM.svg?branch=master)](https://travis-ci.org/BackofenLab/CAM)
+
 # CAM
 
 CAM is a constraint programming based approach to compute atom-atom maps for chemical reactions based on the identification of chemically feasible imaginary transition states (ITS). 
