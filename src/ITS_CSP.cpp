@@ -11,10 +11,13 @@ ITS_CSP::
 ITS_CSP( const ITS & its
 		, const ReactionGraph & educts
 		, const ReactionGraph & products
+		, ITS_CSP::SymmetryHandler & symHandler
 ) :	its(its)
 	, educts(educts)
 	, products(products)
+	, symHandler(symHandler)
 	, eduITS( *this, its.getSize(), 0, educts.getGraphToSearchSize()-1 )
+	, eduITSproton( *this, its.getSize(), 0, 1 )
 	, proITS( *this, its.getSize(), 0, products.getGraphToSearchSize()-1 )
 	, itsAtomLabel( *this, its.getSize(), 0, ReactionGraph::getAtomLabelNumber()-1 )
 
@@ -40,23 +43,46 @@ ITS_CSP( const ITS & its
 		  // ensure a change in atom charge
 		chargeChange( *this, eduITS[i], proITS[i], its.getChargeChange().at(i) );
 
-		  // ITS ring symmetry breaking
-		if (i>0) {
-			rel(*this, eduITS[0], IRT_LE, eduITS[i]);
-		}
-
+		  // store whether or not a mapping includes protons
+		rel( *this, eduITS[i], IRT_GQ, eductsFirstProtonIndex, eduITSproton[i] );
 	}
+
+	// restrict number of protons within ITS to be less than half
+	const size_t maxProtonNumber = (its.getSize() -1) / 2;
+	linear( *this, eduITSproton, IRT_LQ, maxProtonNumber );
 
 
 	for ( size_t i = 0; i < (its.getSize()-1); i++ )
 	{
 		  // ensure alternating cycle structure of the ITS in the mapping
 		alternateCycle( *this, eduITS[i], eduITS[i+1], proITS[i], proITS[i+1], its.getBondChange().at(i) );
+
+		  // ensure minimal edge valence to speedup alternating cycle
+		if ( its.getBondChange().at(i) > 0 )
+			minEdgeValence( *this, proITS[i], proITS[i+1], abs(its.getBondChange().at(i)), products.getGraphToSearchValences() );
+		else if ( its.getBondChange().at(i) < 0 )
+			minEdgeValence( *this, eduITS[i], eduITS[i+1], abs(its.getBondChange().at(i)), educts.getGraphToSearchValences() );
 	}
 
 	  // ensure alternating cycle for ring closure
 	alternateCycle( *this, eduITS[its.getSize()-1], eduITS[0], proITS[its.getSize()-1], proITS[0],
 			its.getBondChange().at(its.getSize()-1) );
+
+	  // ensure minimal edge valence to speedup alternating cycle for the last bond pair
+	if ( its.getBondChange().at(its.getSize()-1) > 0 )
+		minEdgeValence( *this, proITS[its.getSize()-1], proITS[0], abs(its.getBondChange().at(its.getSize()-1)), products.getGraphToSearchValences() );
+	else if ( its.getBondChange().at(its.getSize()-1) < 0 )
+		minEdgeValence( *this, eduITS[its.getSize()-1], eduITS[0], abs(its.getBondChange().at(its.getSize()-1)), educts.getGraphToSearchValences() );
+
+	  // ensure that all connected components are included in the mapping
+	if ( educts.getGraphToSearchCompNum() > 1 )
+	{
+		coverConnectedComps( *this, eduITS, educts.getGraphToSearchCompLabel(), educts.getGraphToSearchCompNum() );
+	}
+	if ( products.getGraphToSearchCompNum() > 1 )
+	{
+		coverConnectedComps( *this, proITS, products.getGraphToSearchCompLabel(), products.getGraphToSearchCompNum() );
+	}
 
 	/////////////////////////  LOCAL NEIGHBORHOOD PREPROCESSING  /////////////////////////
 
@@ -76,11 +102,30 @@ ITS_CSP( const ITS & its
 
 	/////////////////////////  SYMMETRY BREAKING  /////////////////////////
 
+	  // order constraints to break ITS symmetries
+	sgm::PA_OrderCheck::CheckList::const_iterator iter;
+	for ( iter = its.getNeededOrderChecks().begin(); iter != its.getNeededOrderChecks().end(); iter++ ) {
+		rel(*this, eduITS[(*iter).first], IRT_LE, eduITS[(*iter).second]);
+	}
 	  // branching on educts
 	branch(*this, eduITS, INT_VAR_SIZE_MIN(), INT_VAL_MIN());
+	  // post symmetry checker for educt assignments
+	branch( *this, &checkEduSymmetries );
 	  // branching on products
 	branch(*this, proITS, INT_VAR_SIZE_MIN(), INT_VAL_MIN());
+	  // post symmetry checker for product assignments (educt assignment assumed)
+	branch( *this, &checkProSymmetries );
 
+	/*
+	//////////////////////////////////////////////////////////
+	// POSSIBLE HEURISTICS
+	 * # if multi molecule : (i,j) of bond break/formation to be tried first to
+	 *   span different molecules
+	 * # identify Exact Subgraphs Matches (ESM) that cover >50% of the molecules
+	 *   for large reactions
+	 *   - shrink ESM graphs by one bond and avoid resulting subgraph in CAM
+	 * # ensure that "reactive" atoms as "O,N,S" are involved (not only C,H) : ! NOT ALWAYS TRUE : R00930, R01344, R00353, R00743
+	 */
 
 
 
@@ -103,10 +148,12 @@ ITS_CSP( bool share, ITS_CSP & itsCSP )
 		, its( itsCSP.its )
 		, educts( itsCSP.educts )
 		, products (itsCSP.products )
+		, symHandler( itsCSP.symHandler )
 
 {
 	  // modifying data members during the copying
 	eduITS.update( *this, share, itsCSP.eduITS );
+	eduITSproton.update( *this, share, itsCSP.eduITSproton );
 	proITS.update( *this, share, itsCSP.proITS );
 	itsAtomLabel.update( *this, share, itsCSP.itsAtomLabel );
 }
@@ -149,6 +196,171 @@ getProductITS() const {
 	return assignment;
 }
 
+/////////////////////////////////////////////////////////////////////////
+
+sgm::Match
+ITS_CSP::
+getEduITSsolution() const {
+	  // get assignment
+	sgm::Match curSol = getEductITS();
+	SymmetricMatchSet allSym;
+	  // generate all symmetries including identity
+	storeSymmetries( curSol, educts, allSym, false );
+	assert(!allSym.empty());
+	  // return smallest symmetry of all
+	return *(allSym.begin());
+}
+
+/////////////////////////////////////////////////////////////////////////
+
+sgm::Match
+ITS_CSP::
+getProITSsolution() const {
+	  // get assignment
+	sgm::Match curSol = getProductITS();
+	SymmetricMatchSet allSym;
+	  // generate all symmetries including identity
+	storeSymmetries( curSol, products, allSym, false );
+	assert(!allSym.empty());
+	  // return smallest symmetry of all
+	return *(allSym.begin());
+}
+
+/////////////////////////////////////////////////////////////////////////
+
+void
+ITS_CSP::
+storeSymmetries( const sgm::Match& curSol
+			, const ReactionGraph & graph
+			, ITS_CSP::SymmetricMatchSet & symSolStorage
+			, const bool removeIdentity ) const
+{
+	  // set of all unique symmetric solutions
+	SymmetricMatchSet symSol;
+
+	  // add current solution if not to be ignored
+	if (!removeIdentity) {
+		symSol.insert(curSol);
+	}
+
+	  // get symmetries according to ITS variable shuffling
+	getITSSymmetries( curSol, its, symSol );
+
+	  // generate all value symmetric solutions and store
+	sgm::Match nextSym(curSol.size());
+	for (ReactionGraph::SymmetricMatchSet::const_iterator
+			curSym = graph.getGraphToSearchSymmetries().begin();
+			curSym != graph.getGraphToSearchSymmetries().end(); ++curSym)
+	{
+		  // get symmetric "sub-match", ie. symmetric matching positions of current assignment
+		for (size_t i=0; i<curSol.size(); ++i) {
+			assert( curSol.at(i) < curSym->size() );
+			nextSym[i] = curSym->at( curSol.at(i) );
+		}
+		  // insert to set (ensures uniqueness of symmetric solutions)
+		symSol.insert(nextSym);
+		  // get symmetries according to ITS variable shuffling
+		getITSSymmetries( nextSym, its, symSol );
+	}
+	  // store symmetric solutions
+	for (SymmetricMatchSet::const_iterator curSym = symSol.begin(); curSym != symSol.end(); ++curSym) {
+		  // check if this is the identity symmetry
+		bool identic = removeIdentity;
+		for (size_t i=0; identic && i<curSym->size(); ++i) {
+			identic = curSym->at(i) == curSol.at(i);
+		}
+		  // store only non-identity symmetric solutions if requested
+		if (!identic) {
+			symSolStorage.insert( *curSym );
+		}
+	}
+}
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+void
+ITS_CSP::
+checkEduSymmetries( Gecode::Space & home )
+{
+
+	ITS_CSP & csp = dynamic_cast< ITS_CSP &>(home);
+	  // ensure propagation and check for failure
+	if ( csp.status() == SS_FAILED ) {
+		return;
+	}
+
+	  // if this a symmetric sub solution -> fail the search here
+	if (csp.symHandler.eduSymSolutions.find( csp.getEductITS() ) != csp.symHandler.eduSymSolutions.end()) {
+		csp.fail();
+	}
+	  // clear previous product symmetries, since we swapped to another educt assignment
+	if (csp.symHandler.eduLastSolution != csp.getEductITS()) {
+		csp.symHandler.proSymSolutions.clear();
+	}
+}
+
+/////////////////////////////////////////////////////////////////////////
+
+void
+ITS_CSP::
+checkProSymmetries( Gecode::Space & home )
+{
+	ITS_CSP & csp = dynamic_cast< ITS_CSP &>(home);
+	  // ensure propagation and check for failure
+	if ( csp.status() == SS_FAILED ) {
+		return;
+	}
+
+	  // if this a symmetric sub solution -> fail the search here
+	if (csp.symHandler.proSymSolutions.find( csp.getProductITS() ) != csp.symHandler.proSymSolutions.end()) {
+		csp.fail();
+	} else {
+		  // try to generate symmetric educt solution only for first product assignment
+		if (csp.symHandler.eduLastSolution != csp.getEductITS()) {
+			  // store current educt assignment
+			csp.symHandler.eduLastSolution = csp.getEductITS();
+			  // store all symmetric solutions of educts
+			csp.storeSymmetries( csp.symHandler.eduLastSolution, csp.educts, csp.symHandler.eduSymSolutions, true );
+		}
+		  // store all symmetric solutions of products
+		csp.storeSymmetries( csp.getProductITS(), csp.products, csp.symHandler.proSymSolutions, true );
+	}
+}
+
+
+/////////////////////////////////////////////////////////////////////////
+
+void
+ITS_CSP::
+getITSSymmetries( const sgm::Match & curSol
+					, const ITS & its
+					, SymmetricMatchSet & symSol )
+{
+	  // generate ITS-based symmetries of this match symmetry
+	const ITS::MatchSet & itsSym = its.getSymmetricMatches();
+	sgm::Match nextSym(curSol.size());
+	for(ITS::MatchSet::const_iterator sym = itsSym.begin(); sym != itsSym.end(); ++sym ) {
+		assert(sym->size() == curSol.size());
+		  // create symmetric solution via variable swapping
+		for (size_t i=0; i<sym->size(); ++i) {
+			nextSym[i] = curSol.at( sym->at(i) );
+		}
+		  // store symmetry of the symmetric solution
+		symSol.insert(nextSym);
+	}
+
+}
+
+/////////////////////////////////////////////////////////////////////////
+
+const
+ITS_CSP::SymmetricMatchSet &
+ITS_CSP::getProSymmetries() const
+{
+	return symHandler.proSymSolutions;
+}
 
 /////////////////////////////////////////////////////////////////////////
 

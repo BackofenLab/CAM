@@ -160,13 +160,13 @@ void
 initAllowedArguments(biu::OptionMap & allowedArgs, std::string &infoText )
 {
 	infoText = "\n"
-		"CAM - Constraint-based Atom-Atom Mapping - identifies atom maps that encode chemically feasible cyclic Imaginary Transition States (ITS).\n"
-		"Beside using ITS derived from known reaction mechanisms, the user can provide new ITS encodings.\n"
+			"CAM - Constraint-based Atom-Atom Mapping - identifies atom maps that encode chemically feasible cyclic Imaginary Transition States (ITS).\n"
+			"Beside using ITS derived from known reaction mechanisms, the user can provide new ITS encodings.\n"
 		;
 
 	allowedArgs.push_back(biu::COption(
 							"reaction", false, biu::COption::STRING,
-							"reaction encoding in SMIRKS format, i.e. dot-separated educt SMILES followed by '>>' and the dot-separated product SMILES"));
+							 "reaction encoding in SMIRKS format, i.e. dot-separated educt SMILES followed by '>>' and the dot-separated product SMILES"));
 	allowedArgs.push_back(biu::COption(
 							"k", true, biu::COption::INT,
 							"ITS ring size. If not specified all ring sizes are tested in increasing order until a match was found."));
@@ -467,8 +467,8 @@ findMappings( ITS_CSP & csp
 		// solution->print();
 		sgm::Match eduNewITSIndices, proNewITSIndices;
 		ggl::chem::Molecule eduMol, proMol;
-		eduMol = solution->getEduGraph().getGraphToMatch( solution->getEductITS(), eduNewITSIndices );
-		proMol = solution->getProGraph().getGraphToMatch( solution->getProductITS(), proNewITSIndices );
+		eduMol = solution->getEduGraph().getGraphToMatch( solution->getEduITSsolution(), eduNewITSIndices );
+		proMol = solution->getProGraph().getGraphToMatch( solution->getProITSsolution(), proNewITSIndices );
 		ggl::chem::Molecule_Graph eduMolGraph(eduMol), proMolGraph(proMol);
 
 		ITS_Graph_Interface eduGraphITS( eduMolGraph, eduNewITSIndices );
@@ -634,6 +634,8 @@ int main(int argc, char* argv[]) {
 	  // create final educt/product graphs for CSP setup
 	ReactionGraph educts( ggl::chem::Molecule_Graph_V( chemReaction.getEduMolecules() ), !allowSubset, false );
 	ReactionGraph products( ggl::chem::Molecule_Graph_V( chemReaction.getProMolecules() ), !allowSubset, false );
+//	ReactionGraph educts( ggl::chem::Molecule_Graph_V( chemReaction.getEduMolecules() ), !allowSubset, opts.argExist("v") );
+//	ReactionGraph products( ggl::chem::Molecule_Graph_V( chemReaction.getProMolecules() ), !allowSubset, opts.argExist("v") );
 
 	if (opts.argExist("ITS")) {
 		  // setup ITS layout
@@ -641,7 +643,8 @@ int main(int argc, char* argv[]) {
 		  // check if ITS is compatible to reaction
 		if (areCompatible( curITS, educts, products )) {
 			  // setup CSP
-			ITS_CSP curCSP( curITS, educts, products);
+			ITS_CSP::SymmetryHandler symHandler;
+			ITS_CSP curCSP( curITS, educts, products, symHandler);
 			  // find all mappings for the given ITS layout
 			findMappings( curCSP
 						, statistics
@@ -669,7 +672,8 @@ int main(int argc, char* argv[]) {
 			  // check if ITS is compatible to reaction
 			if (areCompatible( curITS, educts, products )) {
 				  // setup CSP
-				ITS_CSP curCSP( curITS, educts, products );
+				ITS_CSP::SymmetryHandler symHandler;
+				ITS_CSP curCSP( curITS, educts, products, symHandler);
 				  // find all mappings for the given ITS layout
 				if(findMappings( curCSP
 							, statistics
