@@ -1,0 +1,23 @@
+sudo: false
+language: cpp
+
+os:
+  - linux
+
+compiler:
+  - gcc
+
+before_install:
+  - travis_retry sudo apt-get install -qq libboost-all-dev
+
+script:
+ # download and compile ViennaRNA dependency
+ - wget http://www.tbi.univie.ac.at/software/GGL/Download/ggl-4.1.1.tar.gz
+ - tar xvfz ggl-4.1.1.tar.gz
+ - cd ggl-4.1.1 && ./configure --prefix=$HOME/ggl && make && make install
+ - wget http://www.gecode.org/download/gecode-4.1.0.tar.gz
+ - tar xvfz gecode-4.1.0.tar.gz
+ - cd gecode-4.1.0 && ./configure --prefix=$HOME/gecode --disable-examples --disable-flatzinc --disable-driver --disable-thread --disable-gist --disable-qt --disable-mpfr --disable-float-vars  --enable-static --disable-shared
+ - make && make install
+ - cd $TRAVIS_BUILD_DIR && ./configure --prefix=$HOME/cam --with-ggl=$HOME/ggl --with-geode=$HOME/geode
+ - make && make install
