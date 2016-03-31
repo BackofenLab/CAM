@@ -1,0 +1,17 @@
+
+
+140412 Martin Mann :
+ * ITS :
+   * construction supports now ITS string in GML format (NOT FINISHED)
+ * cam :
+   + additional ITS in GML format
+ * ReactionGraph :
+   + getGraphToSearchProtonNumber() : number of protons in final search graph
+ * ITS_CSP :
+   + eduITSprotons : boolean whether or not a mapped atom is a proton
+   + relative constraints to bind eduITS with eduITSprotons
+   + linear constraint to bind maximimal number of protons to less than half the
+     ITS size via eduITSprotons
+
+130116 Martin Mann :
+	+ initial automake setup
