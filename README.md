@@ -9,10 +9,10 @@ Chemical reactions are rearrangements of chemical bonds. Each atom in an educt m
 
 ## Contribution
 
-Feel free to contribute to this project by wirting [Issues](https://github.com/BackofenLab/CAM/issues) with feature requests or bug reports.
+Feel free to contribute to this project by raising [Issues](https://github.com/BackofenLab/CAM/issues) with feature requests or bug reports.
 
 ## Cite
-If you use IntaRNA, please cite our [article](http://almob.biomedcentral.com/articles/10.1186/s13015-014-0023-3):
+If you use CAM, please cite our [article](http://almob.biomedcentral.com/articles/10.1186/s13015-014-0023-3):
 ```
 DOI: 10.1186/s13015-014-0023-3
 ```
