@@ -7,7 +7,7 @@ AM_CXXFLAGS = 	-I$(top_srcdir)/src \
 AM_LDFLAGS  = @AM_LDFLAGS@ 
 LIBS        = @LIBS@ 
 
-bin_PROGRAMS = cam molKelkule
+bin_PROGRAMS = cam molKekule
 
 #############   CYCLIC ITS ATOM MAPPING   ##################################
 
@@ -49,7 +49,7 @@ cam_SOURCES =	\
 
 #############   AMBIGUOUS RING BOND ENUMERATION   ############################
 
-molKelkule_SOURCES =	\
+molKekule_SOURCES =	\
 					biu/OptionParser.hh \
 					biu/OptionParser.cc \
 					molKekule.cc
