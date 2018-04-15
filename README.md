@@ -12,7 +12,13 @@ Chemical reactions are rearrangements of chemical bonds. Each atom in an educt m
 Feel free to contribute to this project by raising [Issues](https://github.com/BackofenLab/CAM/issues) with feature requests or bug reports.
 
 ## Cite
-If you use CAM, please cite our [article](http://almob.biomedcentral.com/articles/10.1186/s13015-014-0023-3):
-```
-DOI: 10.1186/s13015-014-0023-3
-```
+If you use CAM, please cite our articles:
+
+- [Atom mapping with constraint programming](http://almob.biomedcentral.com/articles/10.1186/s13015-014-0023-3),
+  Martin Mann, Feras Nahar, Norah Schnorr, Rolf Backofen, Peter F Stadler and Christoph Flamm,
+  Algorithms for Molecular Biology, 2014, 9:23, [DOI:10.1186/s13015-014-0023-3](http://almob.biomedcentral.com/articles/10.1186/s13015-014-0023-3)
+  = `cam` binary
+- [Kekule structure enumeration yields unique SMILES](http://www.bioinf.uni-freiburg.de/Publications/Mann_kekule_13.pdf),
+   Martin Mann and Bernhard Thiel,
+   In Proceedings of the Workshop on Constraint Based Methods for Bioinformatics (WCB 2013), pages 1-9, 2013
+   = `molKekule` binary
