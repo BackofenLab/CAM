@@ -6,6 +6,14 @@ CAM is a constraint programming based approach to compute atom-atom maps for che
 
 Chemical reactions are rearrangements of chemical bonds. Each atom in an educt molecule thus appears again in a specific position of one of the reaction products. This bijection between educt and product atoms is not reported by chemical reaction databases, however, so that the “Atom Mapping Problem” of finding this bijection is left as an important computational task for many practical applications in computational chemistry and systems biology. Elementary chemical reactions feature a cyclic imaginary transition state (ITS) that imposes additional restrictions on the bijection between educt and product atoms that are not taken into account by previous approaches. We demonstrate that Constraint Programming is well-suited to solving the Atom Mapping Problem in this setting. The performance of our approach is evaluated for a manually curated subset of chemical reactions from the [KEGG database](http://www.genome.jp/kegg/) featuring various ITS cycle layouts and reaction mechanisms.
 
+## Dependencies
+
+To compile CAM you need
+
+- [boost](http://www.boost.org/) library >= 1.55
+- [Graph Grammar Library](https://github.com/BackofenLab/GGL) (ggl) >= 4.1.1
+- [Gecode](http://www.gecode.org/) library >= 4.0 < 5.0 *NOTE: CAM requires version 4!*
+
 
 ## Contribution
 
